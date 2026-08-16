@@ -1,0 +1,101 @@
+{
+  "sso": {
+    "login_url": "https://app.alriyadh.gov.sa/SSO/faces/login",
+    "username_selector": "input[id='pt1:unameInputId']",
+    "password_selector": "input[id='pt1:passInputId']",
+    "login_button_selector": "button[id='clickLoginId']",
+    "auto_login": true,
+    "manual_timeout_sec": 600,
+    "captcha_retries": 3,
+    "otp": {
+      "imap_server": "outlook.office365.com",
+      "imap_port": 993,
+      "timeout_sec": 120,
+      "wait_code_sec": 90,
+      "subject_keywords": ["تحقق", "رمز", "الدخول", "Verification", "OTP", "كلمة المرور"]
+    }
+  },
+  "report": {
+    "url": "",
+    "today_file_marker": "تاريخ",
+    "department_column": "الفريق المالك للطلب",
+    "request_id_column": "رقم الطلب",
+    "expected_columns": [
+      "رقم الطلب", "نوع الطلب", "الخدمة الرئيسية", "الخدمة الفرعية", "المنشأ",
+      "الحي", "مالك الطلب", "الفريق المالك للطلب", "الحالة", "تاريخ الإنشاء",
+      "تاريخ التعديل", "المرحلة النشطة", "نوع مالك الطلب الحالي", "عدد التعليقات",
+      "عدد مرات إعادة فتح الطلب"
+    ],
+    "max_records": 100000,
+    "max_records_tolerance_ratio": 0.98,
+    "capture_tables": true,
+    "export_button_keywords": ["تصدير", "Excel", "تحميل"],
+    "download_dir": "output",
+    "crm": {
+      "enabled": true,
+      "url": "https://crm.alriyadh.gov.sa/",
+      "view_name": "التقرير الشامل",
+      "fallback_view_name": "تقرير كافة الطلبات",
+      "export_button": "تصدير إلى Excel",
+      "static_worksheet": "ورقة عمل ثابتة",
+      "apply_date_filter": true,
+      "date_field": "تاريخ الإنشاء",
+      "date_days_back": 1,
+      "download_timeout_sec": 600
+    }
+  },
+  "matching": {
+    "normalize": {
+      "strip_spaces": true,
+      "strip_dashes": true,
+      "strip_brackets": true,
+      "unify_admin_term": true,
+      "admin_term": "إدارة",
+      "replacements": {
+        "الرقمنة": "التحول الرقمي",
+        "سم": "ســم"
+      }
+    },
+    "confirmed_match_only": true
+  },
+  "email_list": {
+    "file": "email_list.xlsx",
+    "dept_col": "الإدارة",
+    "email_col": "البريد الإلكتروني",
+    "cc_col": "CC",
+    "status_col": "حالة الإرسال",
+    "default_status": "فعال",
+    "active_values": ["فعال", "نشط", "مفعّل", "1"]
+  },
+  "output": {
+    "raw_file": "output/بيانات_خام.xlsx",
+    "split_dir": "output/مقسمة",
+    "unassigned_file": "output/Unassigned.xlsx",
+    "no_email_file": "output/إدارات_بدون_بريد.xlsx",
+    "new_dept_file": "output/إدارات_جديدة.xlsx",
+    "summary_file": "output/ملخص_الإرسال.xlsx",
+    "dept_summary_file": "output/ملخص_الإدارات.xlsx",
+    "run_log_file": "output/سجل_التشغيل.csv",
+    "admin_report_file": "output/تقرير_التشغيل_اليومي.xlsx",
+    "archive_dir": "output/أرشيف"
+  },
+  "email": {
+    "smtp_server": "smtp.office365.com",
+    "smtp_port": 587,
+    "use_tls": true,
+    "send_via": "owa",
+    "subject_template": "التقرير اليومي للطلبات - {date}",
+    "body_template": "السلام عليكم ورحمة الله وبركاته،\n\nنفيدكم بإرفاق التقرير اليومي للطلبات الخاصة بالإدارة، وذلك للاطلاع واتخاذ ما يلزم.\n\nإجمالي الطلبات: {count}\n\nمع خالص التحية."
+  },
+  "admin_report": {
+    "subject_success": "🟢 اكتملت العملية اليومية بنجاح - {date}",
+    "subject_warning": "🟡 اكتملت العملية جزئياً - {date}",
+    "subject_fail": "🔴 فشل التقرير اليومي - {date}",
+    "to": ""
+  },
+  "scheduler": {
+    "enabled": true,
+    "time": "08:00",
+    "task_name": "AutomationDailyReport"
+  }
+}
