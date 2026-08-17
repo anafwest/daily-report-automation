@@ -1,6 +1,6 @@
 {
   "sso": {
-    "login_url": "https://app.alriyadh.gov.sa/SSO/faces/login",
+    "login_url": "https://app.alriyadh.gov.sa/SSO/loginApi",
     "username_selector": "input[id='pt1:unameInputId']",
     "password_selector": "input[id='pt1:passInputId']",
     "login_button_selector": "button[id='clickLoginId']",
@@ -34,8 +34,8 @@
     "crm": {
       "enabled": true,
       "url": "https://crm.alriyadh.gov.sa/",
-      "view_name": "التقرير الشامل",
-      "fallback_view_name": "تقرير كافة الطلبات",
+      "view_name": "الإدارة العامة لتنمية المدينة - غرب - التقرير الشامل",
+      "fallback_view_name": "تقرير الطلبات النشطة",
       "export_button": "تصدير إلى Excel",
       "static_worksheet": "ورقة عمل ثابتة",
       "apply_date_filter": true,
@@ -80,12 +80,14 @@
     "archive_dir": "output/أرشيف"
   },
   "email": {
-    "smtp_server": "smtp.office365.com",
-    "smtp_port": 587,
-    "use_tls": true,
-    "send_via": "owa",
+    "smtp_server": "mail.alriyadh.gov.sa",
+    "smtp_port": 25,
+    "use_tls": false,
+    "send_via": "smtp",
+    "global_cc": "anaf@alriyadh.gov.sa",
+    "summary_recipient": "anaf@alriyadh.gov.sa",
     "subject_template": "التقرير اليومي للطلبات - {date}",
-    "body_template": "السلام عليكم ورحمة الله وبركاته،\n\nنفيدكم بإرفاق التقرير اليومي للطلبات الخاصة بالإدارة، وذلك للاطلاع واتخاذ ما يلزم.\n\nإجمالي الطلبات: {count}\n\nمع خالص التحية."
+    "body_template": "سعادة/ {dept_name}\n\nالسلام عليكم ورحمة الله وبركاته،،\n\nإشارةً إلى طلبات خدمة العملاء المحالة للإدارة لديكم حسب البيان المرفق، نأمل من سعادتكم التكرم بالتوجيه لمن يلزم لاستكمال الإجراءات اللازمة حيال الطلبات، وذلك حرصًا على سرعة معالجة الطلبات وإنهاء او تفادي التصعيد على الإدارة المالكة للطلب للوصول الى نسب انجاز عالية ورفع لرضا المستفيدين.\n\nشاكرين لكم حسن تعاونكم،\nوتفضلوا بقبول خالص التحية والتقدير."
   },
   "admin_report": {
     "subject_success": "🟢 اكتملت العملية اليومية بنجاح - {date}",
@@ -97,5 +99,9 @@
     "enabled": true,
     "time": "08:00",
     "task_name": "AutomationDailyReport"
+  },
+  "whatsapp": {
+    "enabled": false,
+    "numbers": ["0509739793", "0505587785", "0548699995"]
   }
 }

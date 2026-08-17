@@ -12,7 +12,13 @@ def open_persistent_context(playwright, headless=False):
         headless=headless,
         locale="ar-SA",
         viewport={"width": 1600, "height": 900},
-        args=["--disable-blink-features=AutomationControlled"],
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--ignore-certificate-errors",
+            "--ignore-certificate-errors-spki-list",
+            "--auth-server-whitelist=*.alriyadh.gov.sa",
+            "--auth-negotiate-delegate-whitelist=*.alriyadh.gov.sa",
+        ],
     )
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
     return ctx, page

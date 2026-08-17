@@ -15,12 +15,20 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 
+_EXCLUDE_PREFIXES = ("ملخص", "سجل", "إدارات", "إدارات", "Unassigned", "crm_", "login_")
+
 def _find_latest_report() -> Path:
     cfg = load_config()
-    candidates = sorted(
-        (BASE_DIR / cfg["output"]["download_dir"]).glob("*.xlsx"),
-        key=lambda p: p.stat().st_mtime, reverse=True,
-    )
+    out_dir = BASE_DIR / cfg["report"]["download_dir"]
+    candidates = []
+    for p in out_dir.glob("*.xlsx"):
+        if any(p.name.startswith(prefix) for prefix in _EXCLUDE_PREFIXES):
+            continue
+        if "تقرير_التشغيل" in p.name:
+            continue
+        if p.name.startswith("تقرير_") and any(c.isdigit() for c in p.stem):
+            candidates.append(p)
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return candidates[0] if candidates else None
 
 
@@ -126,6 +134,9 @@ def _run_daily(source: str, dry_run: bool, headless: bool) -> int:
     summary["emails_failed"] = len(failed)
     failures = [(d, r) for d, r in failed]
 
+    # المرحلة 5.5: إرسال الملخص الشخصي
+    send_email.send_summary_email(summary, dry_run=dry_run)
+
     # المرحلة 6: الحالة والتقرير والسجل
     if summary["emails_failed"] == 0:
         summary["status"] = "success"
@@ -139,7 +150,7 @@ def _run_daily(source: str, dry_run: bool, headless: bool) -> int:
         print(f"\n🟢 اكتملت العملية اليومية بنجاح ({run_id})")
     else:
         print(f"\n🟡 اكتملت العملية جزئياً ({run_id}) — إدارات تحتاج متابعة: {len(failures)}")
-    print(f"الطلبات: {summary['total_requests']:,} | الإدارات: {summary['total_depts']} | المرسلة: {summary['emails_sent']} | الفاشلة: {summary['emails_failed']}")
+    print(f"الطلبات: {summary['total_requests']:,} | الإدارات: {summary['total_depts']} | البريد: {summary['emails_sent']}/{summary['emails_failed']} | ملخص: تم إرساله")
     print(f"التقرير: {BASE_DIR / load_config()['output']['admin_report_file']}")
     return 0
 

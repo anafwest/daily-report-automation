@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 
 from .browser_session import open_persistent_context
 
-MAILBOX_URL = "https://outlook.office.com/mail/"
+MAILBOX_URL = "https://mail.alriyadh.gov.sa/owa/"
 
 SEL_NEW = "button[aria-label='بريد جديد']"
 SEL_TO = "div[aria-label='إلى']"
