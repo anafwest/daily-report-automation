@@ -208,6 +208,43 @@ def cmd_run_daily(args):
     return _run_daily(source=args.source, dry_run=args.dry_run, headless=args.headless)
 
 
+def cmd_report(args):
+    cfg = load_config()
+    ecfg = cfg["email_list"]
+    path = BASE_DIR / ecfg["file"]
+    if not path.exists():
+        print(f"ملف الإدارات غير موجود: {path}")
+        return 1
+    import pandas as pd
+    df = pd.read_excel(path, dtype=str).fillna("")
+    dept_col = ecfg["dept_col"]
+    email_col = ecfg["email_col"]
+    cc_col = ecfg.get("cc_col", "CC")
+    status_col = ecfg.get("status_col", "حالة الإرسال")
+
+    print("=" * 70)
+    print(f"  تقرير الإدارات والبريد — إجمالي: {len(df)} إدارة")
+    print("=" * 70)
+    print(f"{'#':<4} {'الإدارة':<35} {'البريد الإلكتروني':<30} {'الحالة':<10}")
+    print("-" * 70)
+    for i, (_, row) in enumerate(df.iterrows(), 1):
+        dept = str(row.get(dept_col, "")).strip()
+        email = str(row.get(email_col, "")).strip()
+        status = str(row.get(status_col, "")).strip()
+        print(f"{i:<4} {dept:<35} {email:<30} {status:<10}")
+    print("-" * 70)
+
+    active = df[df[status_col].astype(str).str.strip().isin(ecfg.get("active_values", ["فعال"]))]
+    print(f"\n  فعال: {len(active)} | معطّل: {len(df) - len(active)}")
+
+    if args.xlsx:
+        out = BASE_DIR / "output" / "تقرير_الإدارات_والبريد.xlsx"
+        from scripts.export_excel import save_dataframes
+        save_dataframes([(f"الإدارات ({len(df)})", df)], str(out))
+        print(f"  تم حفظ الملف: {out}")
+    return 0
+
+
 def cmd_schedule(args):
     sched_install() if args.action == "install" else sched_uninstall()
     return 0
@@ -252,6 +289,10 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="معاينة بدون إرسال فعلي")
     p.add_argument("--headless", action="store_true")
     p.set_defaults(func=cmd_run_daily)
+
+    p = sub.add_parser("report", help="عرض تقرير الإدارات والبريد الإلكتروني")
+    p.add_argument("--xlsx", action="store_true", help="حفظ التقرير كملف Excel")
+    p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("schedule", help="جدولة التشغيل اليومي")
     p.add_argument("--action", choices=["install", "uninstall"], default="install")
