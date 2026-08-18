@@ -17,11 +17,15 @@ if hasattr(sys.stderr, "reconfigure"):
 
 def _find_latest_report() -> Path:
     cfg = load_config()
+    exclude_prefixes = ("ملخص_", "تقرير_التشغيل", "إدارات_", "Unassigned")
     candidates = sorted(
-        (BASE_DIR / cfg["output"]["download_dir"]).glob("*.xlsx"),
+        (BASE_DIR / cfg["report"]["download_dir"]).glob("تقرير_*.xlsx"),
         key=lambda p: p.stat().st_mtime, reverse=True,
     )
-    return candidates[0] if candidates else None
+    for c in candidates:
+        if not c.name.startswith(exclude_prefixes):
+            return c
+    return None
 
 
 def _run_daily(source: str, dry_run: bool, headless: bool) -> int:

@@ -22,6 +22,14 @@ def split_by_department(source_file: str, sheet_name: int = 0,
     settings = settings or load_dept_settings()
 
     raw = pd.read_excel(source_file, sheet_name=sheet_name)
+
+    status_col = rcfg.get("status_column", "")
+    allowed = rcfg.get("allowed_statuses", [])
+    if status_col and allowed and status_col in raw.columns:
+        before = len(raw)
+        raw = raw[raw[status_col].astype(str).str.strip().isin(allowed)].reset_index(drop=True)
+        print(f"فلتر الحالة الفرعية: {before:,} → {len(raw):} سجل (القيم المسموحة: {allowed})")
+
     if dept_col not in raw.columns:
         print(f"عمود '{dept_col}' غير موجود. الأعمدة المتاحة: {list(raw.columns)}")
         return {}

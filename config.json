@@ -26,19 +26,21 @@
       "تاريخ التعديل", "المرحلة النشطة", "نوع مالك الطلب الحالي", "عدد التعليقات",
       "عدد مرات إعادة فتح الطلب"
     ],
+    "status_column": "الحالة الفرعية",
+    "allowed_statuses": ["قيد الإجراء", "جاري العمل"],
     "max_records": 100000,
     "max_records_tolerance_ratio": 0.98,
     "capture_tables": true,
     "export_button_keywords": ["تصدير", "Excel", "تحميل"],
     "download_dir": "output",
     "crm": {
-      "enabled": true,
+      "enabled": false,
       "url": "https://crm.alriyadh.gov.sa/",
       "view_name": "التقرير الشامل",
       "fallback_view_name": "تقرير كافة الطلبات",
       "export_button": "تصدير إلى Excel",
       "static_worksheet": "ورقة عمل ثابتة",
-      "apply_date_filter": true,
+      "apply_date_filter": false,
       "date_field": "تاريخ الإنشاء",
       "date_days_back": 1,
       "download_timeout_sec": 600
