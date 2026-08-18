@@ -242,6 +242,43 @@ def cmd_report(args):
         from scripts.export_excel import save_dataframes
         save_dataframes([(f"الإدارات ({len(df)})", df)], str(out))
         print(f"  تم حفظ الملف: {out}")
+
+    if args.send:
+        from datetime import datetime
+        out = BASE_DIR / "output" / "تقرير_الإدارات_والبريد.xlsx"
+        if not out.exists():
+            from scripts.export_excel import save_dataframes
+            save_dataframes([(f"الإدارات ({len(df)})", df)], str(out))
+        to = "anaf@alriyadh.gov.sa"
+        today = datetime.now().strftime("%d-%m-%Y")
+        subject = f"تقرير الإدارات والبريد — {today}"
+        body = f"السلام عليكم ورحمة الله وبركاته،\n\nإرفاق تقرير الإدارات والبريد الإلكتروني ({len(df)} إدارة).\n\nمع خالص التحية."
+        item = {"to": to, "cc": "", "subject": subject, "body": body, "attachment": str(out)}
+
+        print("\n" + "=" * 50)
+        print("  معاينة الإرسال")
+        print("=" * 50)
+        print(f"  إلى: {to}")
+        print(f"  الموضوع: {subject}")
+        print(f"  المرفق: {out.name} ({len(df)} إدارة)")
+        print("=" * 50)
+
+        if args.dry_run:
+            print("  [وضع المعاينة] — لم يتم الإرسال فعلياً")
+            return 0
+
+        confirm = input("\n  هل تريد الإرسال الآن؟ (نعم/لا): ").strip()
+        if confirm not in ("نعم", "yes", "y", "n", "لا", "ن"):
+            print("  تم الإلغاء.")
+            return 0
+
+        from scripts.owa_send import send_emails_via_owa
+        sent, failed = send_emails_via_owa([item], dry_run=False)
+        if sent:
+            print(f"  تم إرسال التقرير إلى: {to}")
+        elif failed:
+            print(f"  فشل الإرسال: {failed}")
+            return 1
     return 0
 
 
@@ -292,6 +329,8 @@ def main():
 
     p = sub.add_parser("report", help="عرض تقرير الإدارات والبريد الإلكتروني")
     p.add_argument("--xlsx", action="store_true", help="حفظ التقرير كملف Excel")
+    p.add_argument("--send", action="store_true", help="إرسال التقرير إلى anaf@alriyadh.gov.sa عبر OWA")
+    p.add_argument("--dry-run", action="store_true", help="معاينة بدون إرسال فعلي")
     p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("schedule", help="جدولة التشغيل اليومي")
