@@ -337,6 +337,15 @@ def _auto_login(page, cfg):
                 return False
         _click_login(page)
         print("  تم الضغط على زر الدخول، بانتظار نافذة رمز التحقق...")
+        page.wait_for_timeout(4000)
+        try:
+            url_after = _strip_url(page.url)
+            login_path = _strip_url(sso["login_url"])
+            if "/faces/home" in url_after or (url_after != login_path and url_after.startswith("https://")):
+                print("  الدخول نجح بدون رمز تحقق!")
+                return True
+        except Exception:
+            pass
         if _wait_for_otp_panel(page):
             break
         if attempt + 1 < retries:
@@ -443,15 +452,22 @@ def login(auto: bool = False, inspect: bool = False, headless: bool = False):
     with sync_playwright() as p:
         context, page = _build_context(p, headless)
         sso = cfg["sso"]
+        login_path = _strip_url(sso["login_url"])
         page.goto(sso["login_url"], wait_until="domcontentloaded")
-        page.wait_for_timeout(4000)
+        page.wait_for_timeout(5000)
+
+        logged_in = is_logged_in(page)
+        if logged_in:
+            print("الدخول التلقائي عبر المصادقة الموحدة (IWA) — تم الدخول مباشرة.")
+            save_session(context)
+            context.close()
+            return 0
 
         if inspect:
             _print_inputs(page)
             context.close()
-            return
+            return 0
 
-        logged_in = False
         if auto:
             logged_in = _auto_login(page, cfg)
 
