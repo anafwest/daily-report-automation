@@ -1,5 +1,5 @@
 import time, sys, os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -89,41 +89,6 @@ def _select_view(page, name, retries=3):
     return False
 
 
-def _apply_date_filter(page, days_back=1):
-    crm_cfg = load_config()["report"].get("crm", {})
-    date_field = crm_cfg.get("date_field", "تاريخ الإنشاء")
-    fbtn = page.locator("[aria-label='Open advanced filtering panel']").first
-    fbtn.hover()
-    page.wait_for_timeout(800)
-    fbtn.click()
-    page.wait_for_timeout(4000)
-
-    page.locator("button:has-text('إضافة')").first.click(timeout=10000)
-    page.wait_for_timeout(3000)
-
-    page.locator("[aria-label='field selector']").last.click(timeout=10000)
-    page.wait_for_timeout(2500)
-    page.locator(f"[aria-label='{date_field}']").last.click(timeout=10000)
-    page.wait_for_timeout(2500)
-
-    page.locator("[aria-label='عامل التشغيل']").last.click(timeout=10000)
-    page.wait_for_timeout(2500)
-    page.locator("[aria-label='On or after']").first.click(timeout=10000)
-    page.wait_for_timeout(3000)
-
-    start = datetime.now() - timedelta(days=int(days_back))
-    value = start.strftime("%d/%m/%Y")
-    v = page.locator("[aria-label='القيمة']").first
-    v.click(timeout=8000)
-    page.wait_for_timeout(500)
-    page.keyboard.type(value, delay=30)
-    page.wait_for_timeout(1500)
-
-    page.locator("[aria-label='Apply the current advanced filters']").first.click(timeout=10000)
-    page.wait_for_timeout(9000)
-    print(f"  طُبّق فلتر التاريخ: من {value}")
-
-
 def capture_report(view_name=None, headless=False) -> str:
     cfg = load_config()
     rcfg = cfg["report"]
@@ -132,7 +97,6 @@ def capture_report(view_name=None, headless=False) -> str:
     fallback = crm.get("fallback_view_name", "تقرير كافة الطلبات")
     export_btn = crm.get("export_button", "تصدير إلى Excel")
     download_sec = int(crm.get("download_timeout_sec", 600))
-    days_back = int(crm.get("date_days_back", 1))
     out_dir = BASE_DIR / rcfg.get("download_dir", "output")
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -194,14 +158,7 @@ def capture_report(view_name=None, headless=False) -> str:
                         print("  لا يوجد عرض متاح.")
                         return ""
 
-            # الخطوة 5: فلترة التاريخ
-            if crm.get("apply_date_filter", True):
-                print("5. تطبيق فلتر التاريخ...")
-                _apply_date_filter(page, days_back)
-            else:
-                print("5. تخطي فلتر التاريخ.")
-
-            # الخطوة 6: تصدير إلى Excel
+            # الخطوة 5: تصدير إلى Excel
             print(f"6. النقر على '{export_btn}'...")
             btn = page.locator(f"button:has-text('{export_btn}')").first
             btn.click(timeout=15000)
