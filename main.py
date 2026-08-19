@@ -8,6 +8,7 @@ from scripts.config_loader import BASE_DIR, load_config
 from scripts.scheduler import install as sched_install
 from scripts.scheduler import status as sched_status
 from scripts.scheduler import uninstall as sched_uninstall
+from scripts.split_by_dept import apply_filters
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -105,13 +106,18 @@ def _run_daily(source: str, dry_run: bool, headless: bool) -> int:
         run_log.append_run(summary)
         return 1
     print(f"تقرير سليم: {validation['rows']:,} سجل × {validation['cols']} عمود")
-    summary["total_requests"] = validation["rows"]
+
+    # تطبيق الفلاتر (الحالة + المنطقة) على البيانات المستخدمة في الإحصائيات والملخص
+    filtered_df = apply_filters(df)
+    summary["raw_requests"] = int(len(df))
+    summary["filtered_out"] = int(len(df) - len(filtered_df))
+    summary["total_requests"] = int(len(filtered_df))
 
     # المرحلة 3: التقسيم
     result = split_by_dept.split_by_department(str(report_path))
     summary["total_depts"] = len(result)
     summary["files_created"] = len(result)
-    dept_series = df[load_config()["report"]["department_column"]]
+    dept_series = filtered_df[load_config()["report"]["department_column"]]
     empty_depts = dept_series.isna().sum() + (dept_series.astype(str).str.strip() == "").sum()
     summary["unassigned"] = int(empty_depts)
     summary["new_depts"] = sum(1 for i in result.values() if i.get("action") == "new_dept")
@@ -121,7 +127,7 @@ def _run_daily(source: str, dry_run: bool, headless: bool) -> int:
 
     # المرحلة 4: الملخص
     try:
-        sum_df = summarize.summarize(df)
+        sum_df = summarize.summarize(filtered_df)
         summarize.save_summary(sum_df)
         print("ملخص الإدارات:")
         print(sum_df.to_string(index=False))

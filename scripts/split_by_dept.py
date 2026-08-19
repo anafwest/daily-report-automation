@@ -14,6 +14,60 @@ def _safe_file_name(name: str) -> str:
     return name.strip()[:80]
 
 
+def _find_column(columns, primary: str, aliases=()) -> str | None:
+    """يبحث عن العمود المطلوب بالاسم الأساسي ثم بالأسماء البديلة (يتجاهل المسافات الزائدة)."""
+    cols = [str(c).strip() for c in columns]
+    if primary and primary in cols:
+        return primary
+    for alias in aliases or []:
+        if alias and alias in cols:
+            return alias
+    return None
+
+
+def apply_filters(raw) -> pd.DataFrame:
+    """يطبّق فلتر الحالة (قيد الإجراء/جاري العمل) ثم فلتر المنطقة (الغرب فقط) على التقرير الخام."""
+    cfg = load_config()
+    rcfg = cfg["report"]
+    raw = raw.copy()
+
+    # 1) فلتر حالة الطلب
+    status_col = _find_column(
+        raw.columns,
+        rcfg.get("status_column", ""),
+        rcfg.get("status_column_aliases", []),
+    )
+    allowed = rcfg.get("allowed_statuses", [])
+    if status_col and allowed:
+        before = len(raw)
+        mask = raw[status_col].astype(str).str.strip().isin(allowed)
+        raw = raw[mask].reset_index(drop=True)
+        print(f"فلتر الحالة ({status_col}): {before:,} → {len(raw):,} سجل (المسموح: {allowed})")
+    elif rcfg.get("status_column"):
+        print(f"تحذير: عمود الحالة '{rcfg['status_column']}' غير موجود في التقرير — تم تخطي فلتر الحالة.")
+
+    # 2) فلتر المنطقة (الغرب فقط)
+    rfilter = rcfg.get("region_filter", {})
+    if rfilter.get("enabled"):
+        reg_col = _find_column(
+            raw.columns,
+            rfilter.get("column", ""),
+            rfilter.get("fallback_columns", []),
+        )
+        keywords = [str(k).strip() for k in rfilter.get("keywords", []) if str(k).strip()]
+        if reg_col and keywords:
+            before = len(raw)
+            mask = raw[reg_col].astype(str).apply(
+                lambda v: any(k in v for k in keywords)
+            )
+            raw = raw[mask].reset_index(drop=True)
+            print(f"فلتر المنطقة ({reg_col}): {before:,} → {len(raw):,} سجل (يُحتفظ فقط بـ: {keywords})")
+        elif not reg_col:
+            print(f"تحذير: عمود المنطقة '{rfilter.get('column')}' غير موجود في التقرير — تم تخطي فلتر المنطقة.")
+
+    return raw
+
+
 def split_by_department(source_file: str, sheet_name: int = 0,
                         settings: DeptSettings = None) -> dict:
     cfg = load_config()
@@ -23,12 +77,8 @@ def split_by_department(source_file: str, sheet_name: int = 0,
 
     raw = pd.read_excel(source_file, sheet_name=sheet_name)
 
-    status_col = rcfg.get("status_column", "")
-    allowed = rcfg.get("allowed_statuses", [])
-    if status_col and allowed and status_col in raw.columns:
-        before = len(raw)
-        raw = raw[raw[status_col].astype(str).str.strip().isin(allowed)].reset_index(drop=True)
-        print(f"فلتر الحالة الفرعية: {before:,} → {len(raw):} سجل (القيم المسموحة: {allowed})")
+    # تطبيق فلتر الحالة (قيد الإجراء/جاري العمل) + فلتر المنطقة (الغرب فقط)
+    raw = apply_filters(raw)
 
     if dept_col not in raw.columns:
         print(f"عمود '{dept_col}' غير موجود. الأعمدة المتاحة: {list(raw.columns)}")
