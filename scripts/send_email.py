@@ -37,11 +37,16 @@ def _connect(sender: str, password: str):
     return server
 
 
-def send_emails(split_result: dict, dry_run: bool = False) -> tuple:
+def send_emails(split_result: dict, dry_run: bool = False, test_to: str = "") -> tuple:
     cfg = load_config()
     email_cfg = cfg["email"]
     sender = env("SMTP_SENDER") or email_cfg.get("sender", "")
     password = env("SMTP_PASSWORD")
+
+    if test_to:
+        print("=" * 60)
+        print(f"🧪 وضع التجربة: جميع الرسائل ستُرسل إلى: {test_to} (بدل الإدارات)")
+        print("=" * 60)
 
     if not sender or not password:
         if dry_run:
@@ -66,12 +71,20 @@ def send_emails(split_result: dict, dry_run: bool = False) -> tuple:
             continue
         dept_cc = info.get("cc", "")
         merged_cc = ",".join(filter(None, [global_cc, dept_cc]))
+        subject = email_cfg["subject_template"].format(date=today)
+        body = email_cfg["body_template"].format(date=today, count=info.get("rows", 0), dept_name=dept)
+        if test_to:
+            merged_cc = ""
+            orig_to = to
+            to = test_to
+            subject = f"[تجربة] {subject} — الأصل إلى: {orig_to}"
+            body += f"\n\n——————————————\n🧪 رسالة تجريبية — في الوضع العادي ستُرسل هذه الرسالة إلى: {orig_to}"
         ready.append({
             "dept": dept,
             "to": to,
             "cc": merged_cc,
-            "subject": email_cfg["subject_template"].format(date=today),
-            "body": email_cfg["body_template"].format(date=today, count=info.get("rows", 0), dept_name=dept),
+            "subject": subject,
+            "body": body,
             "attachment": info.get("file", ""),
         })
 
@@ -149,12 +162,14 @@ def _save_summary(sent, failed, blocked, cfg):
     print(f"الملخص محفوظ في: {summary_path}")
 
 
-def send_summary_email(summary: dict, dry_run: bool = False) -> bool:
+def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "") -> bool:
     cfg = load_config()
     email_cfg = cfg["email"]
     sender = env("SMTP_SENDER") or email_cfg.get("sender", "")
     password = env("SMTP_PASSWORD")
     to = email_cfg.get("summary_recipient", "")
+    if test_to:
+        to = test_to
 
     if not to:
         print("لم يتم تعيين summary_recipient في config.json — تخطي إرسال الملخص.")
@@ -178,6 +193,8 @@ def send_summary_email(summary: dict, dry_run: bool = False) -> bool:
     ]
     body = "\n".join(body_lines)
     subject = f"ملخص التقرير اليومي - {today}"
+    if test_to:
+        subject = f"[تجربة] {subject}"
 
     if dry_run:
         print(f"  [جاهز ملخص] -> {to}")

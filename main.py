@@ -33,7 +33,7 @@ def _find_latest_report() -> Path:
     return candidates[0] if candidates else None
 
 
-def _run_daily(source: str, dry_run: bool, headless: bool) -> int:
+def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") -> int:
     start = datetime.now()
     run_id = run_log.new_run_id()
     summary = {
@@ -135,13 +135,13 @@ def _run_daily(source: str, dry_run: bool, headless: bool) -> int:
         print(f"تنبيه: تعذر إنشاء الملخص: {e}")
 
     # المرحلة 5: الإرسال
-    sent, failed = send_email.send_emails(result, dry_run=dry_run)
+    sent, failed = send_email.send_emails(result, dry_run=dry_run, test_to=test_to)
     summary["emails_sent"] = len(sent)
     summary["emails_failed"] = len(failed)
     failures = [(d, r) for d, r in failed]
 
     # المرحلة 5.5: إرسال الملخص الشخصي
-    send_email.send_summary_email(summary, dry_run=dry_run)
+    send_email.send_summary_email(summary, dry_run=dry_run, test_to=test_to)
 
     # المرحلة 6: الحالة والتقرير والسجل
     if summary["emails_failed"] == 0:
@@ -207,11 +207,16 @@ def cmd_send(args):
 
 
 def cmd_all(args):
-    return _run_daily(source=args.source or args.url, dry_run=args.dry_run, headless=args.headless)
+    return _run_daily(source=args.source or args.url, dry_run=args.dry_run, headless=args.headless, test_to=args.test_to)
 
 
 def cmd_run_daily(args):
-    return _run_daily(source=args.source, dry_run=args.dry_run, headless=args.headless)
+    return _run_daily(source=args.source, dry_run=args.dry_run, headless=args.headless, test_to=args.test_to)
+
+
+def cmd_test_send(args):
+    from scripts.test_send import run as test_send_run
+    return test_send_run(eml=args.eml)
 
 
 def cmd_report(args):
@@ -318,6 +323,7 @@ def main():
     p = sub.add_parser("send", help="إرسال الإيميلات مع المرفقات")
     p.add_argument("--source", default="")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--test-to", default="", help="إرسال تجريبي: كل الرسائل تُحول إلى هذا البريد مع وسم [تجربة]")
     p.set_defaults(func=cmd_send)
 
     p = sub.add_parser("all", help="تنفيذ كل المراحل دفعة واحدة (الوضع القديم)")
@@ -325,13 +331,19 @@ def main():
     p.add_argument("--url", default="")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--headless", action="store_true")
+    p.add_argument("--test-to", default="", help="إرسال تجريبي: كل الرسائل تُحول إلى هذا البريد مع وسم [تجربة]")
     p.set_defaults(func=cmd_all)
 
     p = sub.add_parser("run_daily", help="الدورة اليومية الكاملة وفق مواصفات النظام")
     p.add_argument("--source", default="", help="مسار ملف التقرير الخام (اختياري)")
     p.add_argument("--dry-run", action="store_true", help="معاينة بدون إرسال فعلي")
     p.add_argument("--headless", action="store_true")
+    p.add_argument("--test-to", default="", help="إرسال تجريبي: كل الرسائل تُحول إلى هذا البريد مع وسم [تجربة]")
     p.set_defaults(func=cmd_run_daily)
+
+    p = sub.add_parser("test-send", help="دورة تجريبية على بيانات عينة: فحص + فلاتر + تقسيم + معاينة الرسائل")
+    p.add_argument("--eml", action="store_true", help="حفظ نسخ .eml من كل رسالة لفتحها في Outlook")
+    p.set_defaults(func=cmd_test_send)
 
     p = sub.add_parser("report", help="عرض تقرير الإدارات والبريد الإلكتروني")
     p.add_argument("--xlsx", action="store_true", help="حفظ التقرير كملف Excel")

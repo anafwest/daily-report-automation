@@ -73,6 +73,20 @@ python main.py run_daily --source output/بيانات_خام.xlsx             (�
 ```
 إذا لم يُمرر `--source` يُبحث عن أحدث ملف xlsx في `output/`.
 
+### دورة تجريبية على بيانات عينة (test-send)
+أمر يولّد ملف تقرير تجريبي (بإدارات حقيقية من جدول الإعدادات + حالات ومناطق متنوعة) ويمر على الدورة كاملة: فحص ← فلاتر ← تقسيم ← معاينة الرسائل، **بدون إرسال أي بريد**:
+```
+python main.py test-send                (معاينة في الطرفية)
+python main.py test-send --eml          (+ حفظ نسخ .eml في output/معاينة_الإيميلات/ لفتحها في Outlook)
+```
+
+### إرسال تجريبي حقيقي (test-to)
+تحويل **كل** الرسائل إلى بريد واحد محدد مع وسم `[تجربة]` في الموضوع وبيان المستلم الأصلي — آمن تمامًا ولا يصل أي بريد للإدارات:
+```
+python main.py run_daily --source output/بيانات_خام.xlsx --test-to بريدك@الجهة.gov.sa
+python main.py send --source output/بيانات_خام.xlsx --test-to بريدك@الجهة.gov.sa
+```
+
 ### فحص تقرير فقط
 ```
 python -c "from scripts.validate_report import validate_report; print(validate_report('output/بيانات_خام.xlsx'))"
