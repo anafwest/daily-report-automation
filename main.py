@@ -202,7 +202,7 @@ def cmd_send(args):
     cfg = load_config()
     source = args.source or BASE_DIR / cfg["output"]["raw_file"]
     result = split_by_dept.split_by_department(str(source))
-    send_email.send_emails(result, dry_run=args.dry_run)
+    send_email.send_emails(result, dry_run=args.dry_run, test_to=args.test_to)
     return 0
 
 

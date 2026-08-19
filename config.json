@@ -105,6 +105,11 @@
     "subject_fail": "🔴 فشل التقرير اليومي - {date}",
     "to": ""
   },
+  "test_mode": {
+    "enabled": true,
+    "force_recipient": "anaf@alriyadh.gov.sa",
+    "subject_prefix": "[تجربة] "
+  },
   "scheduler": {
     "enabled": true,
     "time": "08:00",

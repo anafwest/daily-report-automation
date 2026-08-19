@@ -37,12 +37,22 @@ def _connect(sender: str, password: str):
     return server
 
 
+def _resolve_test_recipient(cfg) -> str:
+    """إذا كان وضع الاختبار مفعّلًا في config.json، يرجع البريد الإجباري (كل الرسائل تذهب له فقط)."""
+    tm = cfg.get("test_mode", {})
+    if tm.get("enabled") and tm.get("force_recipient"):
+        return str(tm["force_recipient"]).strip()
+    return ""
+
+
 def send_emails(split_result: dict, dry_run: bool = False, test_to: str = "") -> tuple:
     cfg = load_config()
     email_cfg = cfg["email"]
     sender = env("SMTP_SENDER") or email_cfg.get("sender", "")
     password = env("SMTP_PASSWORD")
 
+    # قفل الاختبار: أي إرسال يتحول إلى البريد المحدد فقط في config.json (test_mode)
+    test_to = test_to or _resolve_test_recipient(cfg)
     if test_to:
         print("=" * 60)
         print(f"🧪 وضع التجربة: جميع الرسائل ستُرسل إلى: {test_to} (بدل الإدارات)")
@@ -168,6 +178,8 @@ def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "") 
     sender = env("SMTP_SENDER") or email_cfg.get("sender", "")
     password = env("SMTP_PASSWORD")
     to = email_cfg.get("summary_recipient", "")
+    # قفل الاختبار: ملخص المسؤول أيضًا يذهب للبريد المحدد فقط
+    test_to = test_to or _resolve_test_recipient(cfg)
     if test_to:
         to = test_to
 
