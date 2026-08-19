@@ -32,7 +32,7 @@ on:
 jobs:
   test-send:
     name: إرسال تجريبي - جهاز الشركة
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 60
     steps:
       - name: تحديد مجلد المشروع
@@ -78,6 +78,44 @@ jobs:
           & $python -m pip install -r requirements.txt --quiet
           Write-Host "Python: $python"
           [System.IO.File]::AppendAllText($env:GITHUB_ENV, "PYTHON_EXE=$python`r`n")
+
+      - name: فحص الجاهزية قبل الإرسال
+        shell: powershell
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          Write-Host "=== فحص الجاهزية ==="
+          # 1) ملف .env
+          if (Test-Path (Join-Path $env:PROJECT_DIR '.env')) {
+            Write-Host '✅ ملف .env موجود'
+          } else {
+            Write-Host '⚠️ ملف .env غير موجود — الإرسال الفعلي سيفشل (يوجد على جهاز الشركة فقط).'
+          }
+          # 2) وضع الاختبار في config.json
+          try {
+            $cfg = Get-Content (Join-Path $env:PROJECT_DIR 'config.json') -Raw | ConvertFrom-Json
+            if ($cfg.test_mode.enabled) {
+              Write-Host "✅ وضع الاختبار مفعّل — كل الرسائل ستذهب إلى: $($cfg.test_mode.force_recipient) فقط"
+            } else {
+              Write-Host '🔴 تنبيه: وضع الاختبار غير مفعّل — الرسائل ستذهب للإدارات الفعلية!'
+            }
+          } catch {
+            Write-Host '⚠️ تعذر قراءة config.json'
+          }
+          # 3) الوصول لخادم البريد (يجب أن تكون على شبكة الشركة)
+          $client = New-Object System.Net.Sockets.TcpClient
+          try {
+            $async = $client.BeginConnect('mail.alriyadh.gov.sa', 25, $null, $null)
+            if ($async.AsyncWaitHandle.WaitOne(8000)) {
+              $client.EndConnect($async)
+              Write-Host '✅ الوصول لخادم البريد متاح (شبكة الشركة)'
+            } else {
+              Write-Host '🔴 خادم البريد غير متاح — تأكد أن هذا الجهاز متصل بشبكة الشركة'
+            }
+          } catch {
+            Write-Host '🔴 خادم البريد غير متاح — تأكد أن هذا الجهاز متصل بشبكة الشركة'
+          } finally {
+            $client.Close()
+          }
 
       - name: تنفيذ الدورة اليومية (إرسال تجريبي)
         shell: powershell
