@@ -60,9 +60,9 @@ python main.py capture --export --url <رابط_التقرير>
 ```
 python main.py capture --crm
 ```
-التدفق: دخول ADFS ← قسم "الطلبات" ← اختيار العرض (`view_name` في `config.json`، وبديله "تقرير كافة الطلبات") ← فلترة حسب تاريخ الإنشاء **(اليوم وأمس)** ← تصدير إلى Excel ← تحميل `output/تقرير_التاريخ.xlsx`.
+التدفق: دخول ADFS ← قسم "الطلبات" ← اختيار العرض (`view_name` في `config.json`، وبديله "تقرير كافة الطلبات") ← تصدير إلى Excel ← تحميل `output/تقرير_التاريخ.xlsx`.
 - بيانات الدخول: `CRM_USERNAME` (بصيغة البريد) و `CRM_PASSWORD` في `.env`.
-- الإعدادات: قسم `report.crm` في `config.json` (`view_name`, `fallback_view_name`, `apply_date_filter`, `date_field`, `date_days_back`, `download_timeout_sec`).
+- الإعدادات: قسم `report.crm` في `config.json` (`view_name`, `fallback_view_name`, `download_timeout_sec`).
 - **شرط أساسي**: الوصول إلى `crm.alriyadh.gov.sa` يكون من **شبكة الشركة** فقط (اسم داخلي لا يُقدَّم عبر الإنترنت).
 - يُستدعى تلقائياً في الدورة اليومية عند عدم تمرير `--source`.
 
@@ -86,8 +86,17 @@ python main.py schedule-status
 ```
 عدّل الوقت في `config.json` → `scheduler.time`.
 
+### تقرير الإدارات والبريد
+```
+python main.py report               (عرض في الطرفية)
+python main.py report --xlsx         (حفظ كملف Excel)
+python main.py report --send         (إرسال إلى anaf@alriyadh.gov.sa مع معاينة)
+python main.py report --send --dry-run   (معاينة بدون إرسال)
+```
+
 ## قواعد المطابقة والأمان (الأهم)
 
+- **فلترة الحالة الفرعية**: يتم سحب الطلبات فقط بحالة `قيد الإجراء` أو `جاري العمل` من عمود "الحالة الفرعية" في التقرير.
 - **مطابقة مؤكدة → إرسال** / **مطابقة غير مؤكدة → إيقاف وإشعار**.
 - الاسم يُوحَّد أولاً (مسافات، شرطات، أقواس، اختلاف الاتجاه) ثم يُطابق بدقة ضد جدول الإعدادات.
 - أي إدارة غير موجودة في الجدول → ملف يُنشأ لكن **لا يُرسل** ويُعلَّم "إدارة جديدة تحتاج اعتماد".
