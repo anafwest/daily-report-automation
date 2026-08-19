@@ -30,11 +30,11 @@
     "status_column_aliases": ["الحالة الفرعية", "الحالة"],
     "allowed_statuses": ["قيد الإجراء", "جاري العمل"],
     "region_filter": {
-      "enabled": true,
+      "enabled": false,
       "column": "الإدارة - الوكالة الأساسية للطلب",
       "fallback_columns": ["الفريق المالك للطلب"],
       "mode": "contains",
-      "keywords": ["غرب"]
+      "keywords": ["غرب", "وسط", "شمال", "شرق", "جنوب"]
     },
     "max_records": 100000,
     "max_records_tolerance_ratio": 0.98,
