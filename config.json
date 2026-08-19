@@ -106,7 +106,7 @@
     "to": ""
   },
   "test_mode": {
-    "enabled": true,
+    "enabled": false,
     "force_recipient": "anaf@alriyadh.gov.sa",
     "subject_prefix": "[تجربة] "
   },
