@@ -1,0 +1,92 @@
+# ============================================================
+# ورك فلو مؤقت: إرسال تجريبي لمرة واحدة من جهاز الشركة
+# يُشغَّل يدويًا فقط (Run workflow) على Runner محلي (self-hosted)
+# مثبت على جهاز الشركة، لأن خادم البريد mail.alriyadh.gov.sa
+# لا يُتاح إلا من شبكة الشركة.
+#
+# 🔒 مهم: طالما test_mode مفعّل في config.json، كل الرسائل
+#    تذهب إلى anaf@alriyadh.gov.sa فقط ولا يصل أي بريد للإدارات.
+#
+# 🗑️ بعد الانتهاء من التجربة: احذف هذا الملف من المستودع
+#    وأزل الـ runner من الجهاز (التعليمات في نهاية README).
+# ============================================================
+name: test-send
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'اسم ملف التقرير داخل مجلد output/ (اختياري — إن تُرك فارغًا يُستخدم أحدث تقرير)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'معاينة فقط بدون إرسال فعلي (فعّل هذا الخيار للمعاينة)'
+        required: false
+        default: false
+        type: boolean
+      project_dir:
+        description: 'مسار مجلد المشروع على جهاز الشركة (اختياري — يُكتشف تلقائيًا)'
+        required: false
+        default: ''
+
+jobs:
+  test-send:
+    name: إرسال تجريبي - جهاز الشركة
+    runs-on: self-hosted
+    timeout-minutes: 60
+    steps:
+      - name: تحديد مجلد المشروع
+        shell: powershell
+        run: |
+          $project = "${{ inputs.project_dir }}"
+          if ([string]::IsNullOrWhiteSpace($project)) {
+            $candidates = @(
+              "$env:USERPROFILE\daily-report-automation",
+              "$env:USERPROFILE\Documents\daily-report-automation",
+              "$env:USERPROFILE\Desktop\daily-report-automation",
+              "C:\daily-report-automation",
+              "D:\daily-report-automation",
+              "E:\daily-report-automation"
+            )
+            $project = ($candidates | Where-Object { Test-Path (Join-Path $_ 'main.py') } | Select-Object -First 1)
+          }
+          if (-not $project -or -not (Test-Path (Join-Path $project 'main.py'))) {
+            Write-Error 'لم يتم العثور على مجلد المشروع (main.py). حدد المسار يدويًا في خانة project_dir عند التشغيل.'
+            exit 1
+          }
+          Write-Host "مجلد المشروع: $project"
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "PROJECT_DIR=$project`r`n")
+
+      - name: تحديث الكود من GitHub
+        shell: powershell
+        run: |
+          Set-Location $env:PROJECT_DIR
+          git pull 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error 'فشل تحديث الكود (git pull). تأكد أن الجهاز متصل بالإنترنت.'
+            exit 1
+          }
+
+      - name: التأكد من المكتبات
+        shell: powershell
+        run: |
+          $python = 'C:\Users\Malfahd\AppData\Local\Python\pythoncore-3.14-64\python.exe'
+          if (-not (Test-Path $python)) {
+            $found = Get-Command python -ErrorAction SilentlyContinue
+            if ($found) { $python = $found.Source } else { $python = 'python' }
+          }
+          & $python -m pip install -r requirements.txt --quiet
+          Write-Host "Python: $python"
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "PYTHON_EXE=$python`r`n")
+
+      - name: تنفيذ الدورة اليومية (إرسال تجريبي)
+        shell: powershell
+        run: |
+          chcp 65001 | Out-Null
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          Set-Location $env:PROJECT_DIR
+          $runArgs = @('main.py', 'run_daily')
+          if ("${{ inputs.source }}" -ne '') { $runArgs += @('--source', "${{ inputs.source }}") }
+          if ("${{ inputs.dry_run }}" -eq 'true') { $runArgs += '--dry-run' }
+          & $env:PYTHON_EXE @runArgs
+          exit $LASTEXITCODE

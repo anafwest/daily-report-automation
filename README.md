@@ -165,3 +165,15 @@ python main.py report --send --dry-run   (معاينة بدون إرسال)
    python main.py schedule --action install
    ```
 5. إشعار تقرير المسؤول: اضبط `admin_report.to` في `config.json`.
+
+### تشغيل تجريبي لمرة واحدة عبر GitHub Actions (مؤقت)
+الملف `.github/workflows/test-send.yml` يعمل على **Runner محلي مثبت على جهاز الشركة** (`runs-on: self-hosted`) — ضروري لأن خادم البريد لا يُتاح إلا من شبكة الشركة.
+
+**التشغيل:**
+1. جهّز الـ runner على جهاز الشركة: `Settings ← Actions ← Runners ← New self-hosted runner` واتبع الأوامر (Windows x64)، ثم شغّل `run.cmd` واتركه مفتوحًا.
+2. من تبويب **Actions** اختر ورك فلو `test-send` ثم **Run workflow** (خانة `project_dir` تُملأ فقط إذا لم يُكتشف المجلد تلقائيًا).
+3. افحص بريد `anaf@alriyadh.gov.sa` — طالما `test_mode.enabled = true` في `config.json` لا يصل أي بريد للإدارات.
+
+**الحذف بعد الانتهاء:**
+- احذف الملف `.github/workflows/test-send.yml` من المستودع (git rm ثم push).
+- أزل الـ runner من الجهاز: `cd C:\actions-runner` ثم `.\config.cmd remove --token <رمز-جديد>` واحذف المجلد.
