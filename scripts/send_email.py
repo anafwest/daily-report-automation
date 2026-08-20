@@ -189,9 +189,11 @@ def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "") 
 
     today = summary.get("date", datetime.now().strftime("%Y-%m-%d"))
 
+    summary_only = bool(cfg.get("email", {}).get("summary_only", False))
     body_lines = [
         f"ملخص العملية اليومية — {today}",
         "",
+        (f"وضع الملخص فقط — لم تُرسل رسائل الإدارات (لأغراض الاختبار)." if summary_only else ""),
         f"الحالة: {summary.get('status', 'unknown')}",
         f"إجمالي الطلبات: {summary.get('total_requests', 0):,}",
         f"الإدارات: {summary.get('total_depts', 0)}",

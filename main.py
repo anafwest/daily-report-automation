@@ -135,7 +135,13 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
         print(f"تنبيه: تعذر إنشاء الملخص: {e}")
 
     # المرحلة 5: الإرسال
-    sent, failed = send_email.send_emails(result, dry_run=dry_run, test_to=test_to)
+    email_cfg = load_config()["email"]
+    summary_only = bool(email_cfg.get("summary_only", False))
+    if summary_only:
+        print("📄 وضع الملخص فقط مفعّل — لن تُرسل رسائل الإدارات، يُرسل الملخص للمسؤول فقط.")
+        sent, failed = [], []
+    else:
+        sent, failed = send_email.send_emails(result, dry_run=dry_run, test_to=test_to)
     summary["emails_sent"] = len(sent)
     summary["emails_failed"] = len(failed)
     failures = [(d, r) for d, r in failed]
@@ -156,7 +162,10 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
         print(f"\n🟢 اكتملت العملية اليومية بنجاح ({run_id})")
     else:
         print(f"\n🟡 اكتملت العملية جزئياً ({run_id}) — إدارات تحتاج متابعة: {len(failures)}")
-    print(f"الطلبات: {summary['total_requests']:,} | الإدارات: {summary['total_depts']} | البريد: {summary['emails_sent']}/{summary['emails_failed']} | ملخص: تم إرساله")
+    if summary_only:
+        print(f"📄 [وضع الملخص فقط] — لم تُرسل رسائل الإدارات ({summary['total_depts']} ملف أُنشئ)، الملخص أُرسل للمسؤول فقط.")
+    else:
+        print(f"الطلبات: {summary['total_requests']:,} | الإدارات: {summary['total_depts']} | البريد: {summary['emails_sent']}/{summary['emails_failed']} | ملخص: تم إرساله")
     print(f"التقرير: {BASE_DIR / load_config()['output']['admin_report_file']}")
     return 0
 
