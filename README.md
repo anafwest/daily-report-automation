@@ -177,3 +177,12 @@ python main.py report --send --dry-run   (معاينة بدون إرسال)
 **الحذف بعد الانتهاء:**
 - احذف الملف `.github/workflows/test-send.yml` من المستودع (git rm ثم push).
 - أزل الـ runner من الجهاز: `cd C:\actions-runner` ثم `.\config.cmd remove --token <رمز-جديد>` واحذف المجلد.
+
+### إرسال فعلي لمرة واحدة لجميع الإدارات (send_once.bat)
+ملف `send_once.bat` على جهاز الشركة ينفّذ دورة كاملة لمرة واحدة:
+1. تحديث الكود من GitHub + فحص أن وضع الاختبار غير مفعّل.
+2. معاينة المستلمين (run_daily --dry-run) — راجع القائمة جيداً.
+3. تأكيد كتابة `نعم` ثم الإرسال الفعلي لجميع الإدارات (من بريد SMTP_SENDER في .env).
+4. فحص عدم وجود مهمة مجدولة تكرر التشغيل تلقائياً (إن وُجدت: `python main.py schedule --action uninstall`).
+
+⚠️ قبل التشغيل تأكد: ملف `email_list.xlsx` هو الرسمي، و `config.json` بالشكل الصحيح. ولإعادة تفعيل قفل الاختبار: `test_mode.enabled = true` في config.json.
