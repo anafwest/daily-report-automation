@@ -36,7 +36,7 @@ def _find_latest_report() -> Path:
 def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") -> int:
     today = datetime.now()
     weekday = today.weekday()
-    if weekday in (4, 5):
+    if weekday in (4, 5) and not dry_run:
         print(f"⏸️ اليوم {['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'][weekday]} — لا يوجد إرسال أيام الجمعة والسبت.")
         return 0
     start = today
