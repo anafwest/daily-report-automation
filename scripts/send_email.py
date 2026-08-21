@@ -172,13 +172,12 @@ def _save_summary(sent, failed, blocked, cfg):
     print(f"الملخص محفوظ في: {summary_path}")
 
 
-def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "") -> bool:
+def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "", result: dict = None) -> bool:
     cfg = load_config()
     email_cfg = cfg["email"]
     sender = env("SMTP_SENDER") or email_cfg.get("sender", "")
     password = env("SMTP_PASSWORD")
     to = email_cfg.get("summary_recipient", "")
-    # قفل الاختبار: ملخص المسؤول أيضًا يذهب للبريد المحدد فقط
     test_to = test_to or _resolve_test_recipient(cfg)
     if test_to:
         to = test_to
@@ -188,30 +187,107 @@ def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "") 
         return False
 
     today = summary.get("date", datetime.now().strftime("%Y-%m-%d"))
+    status_ar = {"success": "نجاح", "warning": "تنبيه", "fail": "فشل"}.get(summary.get("status", ""), summary.get("status", ""))
 
-    summary_only = bool(cfg.get("email", {}).get("summary_only", False))
     body_lines = [
-        f"ملخص العملية اليومية — {today}",
+        f"السلام عليكم ورحمة الله وبركاته",
         "",
-        (f"وضع الملخص فقط — لم تُرسل رسائل الإدارات (لأغراض الاختبار)." if summary_only else ""),
-        f"الحالة: {summary.get('status', 'unknown')}",
-        f"إجمالي الطلبات: {summary.get('total_requests', 0):,}",
-        f"الإدارات: {summary.get('total_depts', 0)}",
-        f"الرسائل المرسلة: {summary.get('emails_sent', 0)}",
-        f"الرسائل الفاشلة: {summary.get('emails_failed', 0)}",
-        f"طلبات بدون إدارة: {summary.get('unassigned', 0)}",
-        f"إدارات جديدة تحتاج اعتماد: {summary.get('new_depts', 0)}",
-        f"إدارات بلا بريد: {summary.get('no_email', 0)}",
+        f"تقرير الملاحظات والأخطاء — {today}",
+        f"رقم التشغيل: {summary.get('run_id', '')}",
+        f"من: {summary.get('start_time', '')} إلى: {summary.get('end_time', '')}",
+        "",
+        "═" * 50,
+        "  ملخص العملية",
+        "═" * 50,
+        f"  الحالة: {status_ar}",
+        f"  الطلبات الإجمالية: {summary.get('raw_requests', 0):,}",
+        f"  الطلبات بعد الفلترة: {summary.get('total_requests', 0):,}",
+        f"  الطلبات المحذوفة بالفلترة: {summary.get('filtered_out', 0):,}",
+        f"  الإدارات: {summary.get('total_depts', 0)}",
+        f"  الرسائل المرسلة: {summary.get('emails_sent', 0)}",
+        f"  الرسائل الفاشلة: {summary.get('emails_failed', 0)}",
+    ]
+
+    if result:
+        no_email = [(k, v["rows"]) for k, v in result.items() if not v.get("email") and v.get("action") == "no_email"]
+        new_dept = [(k, v["rows"]) for k, v in result.items() if v.get("action") == "new_dept"]
+        disabled = [(k, v["rows"]) for k, v in result.items() if v.get("action") == "disabled"]
+        failed_list = [(k, v.get("reason", "")) for k, v in result.items() if v.get("action") == "failed"]
+
+        if no_email:
+            body_lines += [
+                "",
+                "═" * 50,
+                "  ⚠️ إدارات بدون بريد إلكتروني (تحتاج متابعة)",
+                "═" * 50,
+            ]
+            for name, rows in no_email:
+                body_lines.append(f"  • {name} — {rows} طلب")
+
+        if new_dept:
+            body_lines += [
+                "",
+                "═" * 50,
+                "  🆕 إدارات جديدة تحتاج اعتماد",
+                "═" * 50,
+            ]
+            for name, rows in new_dept:
+                body_lines.append(f"  • {name} — {rows} طلب")
+
+        if disabled:
+            body_lines += [
+                "",
+                "═" * 50,
+                "  🚫 إدارات معطّلة",
+                "═" * 50,
+            ]
+            for name, rows in disabled:
+                body_lines.append(f"  • {name} — {rows} طلب")
+
+        if failed_list:
+            body_lines += [
+                "",
+                "═" * 50,
+                "  ❌ أخطاء",
+                "═" * 50,
+            ]
+            for name, reason in failed_list:
+                body_lines.append(f"  • {name}: {reason}")
+
+        if summary.get("unassigned", 0) > 0:
+            body_lines += [
+                "",
+                "═" * 50,
+                "  📋 طلبات بدون إدارة محددة",
+                "═" * 50,
+                f"  عدد الطلبات: {summary['unassigned']}",
+            ]
+
+    if summary.get("failure_reason"):
+        body_lines += [
+            "",
+            "═" * 50,
+            "  ❌ خطأ في التشغيل",
+            "═" * 50,
+            f"  المرحلة: {summary.get('failure_stage', '')}",
+            f"  السبب: {summary['failure_reason']}",
+        ]
+
+    body_lines += [
+        "",
+        "═" * 50,
         "",
         "وتفضلوا بقبول خالص التحية والتقدير.",
     ]
+
     body = "\n".join(body_lines)
-    subject = f"ملخص التقرير اليومي - {today}"
+    subject = f"تقرير الملاحظات والأخطاء — {today}"
     if test_to:
         subject = f"[تجربة] {subject}"
 
     if dry_run:
         print(f"  [جاهز ملخص] -> {to}")
+        print(body)
         return True
 
     if not sender or not password:

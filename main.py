@@ -152,7 +152,7 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
     failures = [(d, r) for d, r in failed]
 
     # المرحلة 5.5: إرسال الملخص الشخصي
-    send_email.send_summary_email(summary, dry_run=dry_run, test_to=test_to)
+    send_email.send_summary_email(summary, dry_run=dry_run, test_to=test_to, result=result)
 
     # المرحلة 6: الحالة والتقرير والسجل
     if summary["emails_failed"] == 0:
