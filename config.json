@@ -94,7 +94,7 @@
     "smtp_port": 25,
     "use_tls": false,
     "send_via": "smtp",
-    "summary_only": true,
+    "summary_only": false,
     "global_cc": "anaf@alriyadh.gov.sa;MAlFahd@alriyadh.gov.sa",
     "summary_recipient": "anaf@alriyadh.gov.sa",
     "subject_template": "التقرير اليومي للطلبات - {date}",
