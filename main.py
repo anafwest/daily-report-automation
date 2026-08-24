@@ -63,21 +63,24 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
         print("لم يتم إرسال أي بريد.")
         return 1
 
-    # المرحلة 1: التقرير (ملف جاهز أو التقاط من علاقات العملاء)
-    report_path = Path(source) if source else _find_latest_report()
+    # المرحلة 1: التقرير (التقاط من ع relationships العملاء أو ملف جاهز)
+    crm_cfg = load_config()["report"].get("crm", {})
+    report_path = Path(source) if source else None
+
+    if not source and crm_cfg.get("enabled", True):
+        print("بدء الالتقاط من علاقات العملاء...")
+        try:
+            captured = crm_capture.capture_report(headless=headless)
+        except Exception as e:
+            captured = ""
+            print(f"تنبيه: فشل الالتقاط من علاقات العملاء: {e}")
+        if captured and Path(captured).exists():
+            report_path = Path(captured)
+        else:
+            print("تعذر الالتقاط من علاقات العملاء — البحث عن ملف جاهز...")
+            report_path = _find_latest_report()
+
     if report_path is None or not report_path.exists():
-        crm_cfg = load_config()["report"].get("crm", {})
-        if not source and crm_cfg.get("enabled", True):
-            print("لا يوجد ملف تقرير جاهز — بدء الالتقاط من علاقات العملاء...")
-            try:
-                captured = crm_capture.capture_report(headless=headless)
-            except Exception as e:
-                captured = ""
-                print(f"تنبيه: فشل الالتقاط من علاقات العملاء: {e}")
-            if captured and Path(captured).exists():
-                report_path = Path(captured)
-            else:
-                print("تعذر الالتقاط من علاقات العملاء.")
         if report_path is None or not report_path.exists():
             if not source:
                 print("لا يوجد ملف تقرير جاهز. حدد المسار بـ --source أو فعّل الالتقاط من علاقات العملاء.")

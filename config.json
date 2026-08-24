@@ -42,7 +42,7 @@
     "export_button_keywords": ["تصدير", "Excel", "تحميل"],
     "download_dir": "output",
     "crm": {
-      "enabled": false,
+      "enabled": true,
       "url": "https://crm.alriyadh.gov.sa/",
       "view_name": "الإدارة العامة لتنمية المدينة - غرب - التقرير الشامل",
       "fallback_view_name": "تقرير الطلبات النشطة",
