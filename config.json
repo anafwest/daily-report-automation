@@ -113,7 +113,7 @@
   },
   "scheduler": {
     "enabled": true,
-    "time": "08:00",
+    "time": "08:30",
     "task_name": "AutomationDailyReport"
   },
   "whatsapp": {
