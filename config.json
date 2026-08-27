@@ -96,7 +96,7 @@
     "send_via": "smtp",
     "summary_only": false,
     "global_cc": "anaf@alriyadh.gov.sa;MAlFahd@alriyadh.gov.sa",
-    "summary_recipient": "anaf@alriyadh.gov.sa",
+    "summary_recipient": "anaf@alriyadh.gov.sa;afayz@alriyadh.gov.sa",
     "subject_template": "التقرير اليومي للطلبات - {date}",
     "body_template": "سعادة/ {dept_name}\n\nالسلام عليكم ورحمة الله وبركاته،،\n\nإشارةً إلى طلبات خدمة العملاء المحالة للإدارة لديكم حسب البيان المرفق، نأمل من سعادتكم التكرم بالتوجيه لمن يلزم لاستكمال الإجراءات اللازمة حيال الطلبات، وذلك حرصًا على سرعة معالجة الطلبات وإنهاء او تفادي التصعيد على الإدارة المالكة للطلب للوصول الى نسب انجاز عالية ورفع لرضا المستفيدين.\n\nشاكرين لكم حسن تعاونكم،\nوتفضلوا بقبول خالص التحية والتقدير."
   },

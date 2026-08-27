@@ -296,10 +296,13 @@ def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "", 
 
     try:
         server = _connect(sender, password)
-        msg = _build_message(sender, to, "", subject, body, "")
-        server.sendmail(sender, [to], msg.as_string())
+        recipients = [r.strip() for r in to.replace(";", ",").split(",") if r.strip()]
+        msg = _build_message(sender, recipients[0], "", subject, body, "")
+        if len(recipients) > 1:
+            msg["To"] = ", ".join(recipients)
+        server.sendmail(sender, recipients, msg.as_string())
         server.quit()
-        print(f"  [أُرسل ملخص] -> {to}")
+        print(f"  [أُرسل ملخص] -> {', '.join(recipients)}")
         return True
     except Exception as e:
         print(f"  [فشل ملخص] -> {to}: {e}")
