@@ -375,7 +375,12 @@ def main():
     p = sub.add_parser("schedule-status", help="حالة المهمة المجدولة")
     p.set_defaults(func=lambda args: sched_status())
 
+    import scripts.performance_analysis as _perf
+    _perf.add_parser(sub)
+
     args = parser.parse_args()
+    if getattr(args, "cmd", "") == "perf":
+        sys.exit(args.perf_fn(args))
     sys.exit(args.func(args))
 
 

@@ -4,4 +4,5 @@ openpyxl>=3.1
 python-dotenv>=1.0
 ddddocr>=1.4
 pywin32>=306
+flask>=3.1
 
