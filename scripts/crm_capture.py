@@ -9,6 +9,15 @@ from .config_loader import BASE_DIR, env, load_config
 
 MAIN_URL = "https://crm.alriyadh.gov.sa/"
 
+# سبب آخر فشل — يقرأه main.py ليُبلغ المسؤول بسبب محدّد بدل "فشل الالتقاط" فقط
+LAST_ERROR = ""
+
+
+def _set_error(msg: str):
+    global LAST_ERROR
+    LAST_ERROR = msg
+    print(f"  ⚠️ {msg}")
+
 
 def _creds():
     u = env("CRM_USERNAME") or env("OTP_IMAP_EMAIL") or env("SSO_USERNAME")
@@ -43,7 +52,8 @@ def _adfs_login(ctx, page):
         except Exception as e:
             print(f"  خطأ ADFS: {e}")
     else:
-        print("  لا توجد بيانات ADFS — الاعتماد على IWA...")
+        _set_error("لا توجد بيانات ADFS في ملف .env (CRM_USERNAME/CRM_PASSWORD) — الاعتماد على IWA،"
+                   " وهو يفشل غالباً عند التشغيل المجدول غير التفاعلي.")
     return _pick_live(ctx, page)
 
 
@@ -119,7 +129,7 @@ def capture_report(view_name=None, headless=False) -> str:
             # الخطوة 3: انتظار تحميل CRM
             print("3. انتظار تحميل CRM...")
             if not _wait_crm_ready(ctx, page, timeout_sec=90):
-                print("  تعذر الوصول إلى علاقات العملاء.")
+                _set_error(f"انتهت مهلة الوصول إلى علاقات العملاء (90 ث) — آخر رابط: {page.url[:120]}")
                 return ""
             page = _pick_live(ctx, page)
             page.wait_for_timeout(15000)
@@ -155,7 +165,7 @@ def capture_report(view_name=None, headless=False) -> str:
                 if not _select_view(page, view_name):
                     print(f"  '{view_name}' غير متاح — استخدام '{fallback}'.")
                     if not _select_view(page, fallback):
-                        print("  لا يوجد عرض متاح.")
+                        _set_error(f"لا يوجد عرض متاح في علاقات العملاء (المطلوب: {view_name!r} أو {fallback!r}).")
                         return ""
 
             # الخطوة 5: تصدير إلى Excel
@@ -188,6 +198,7 @@ def capture_report(view_name=None, headless=False) -> str:
             print(f"  تم تحميل التقرير: {out_path}")
             return str(out_path)
         except Exception as e:
+            _set_error(f"خطأ أثناء الالتقاط: {type(e).__name__}: {e}")
             print(f"خطأ: {e}")
             try:
                 page = _pick_live(ctx, page)

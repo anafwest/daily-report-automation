@@ -38,6 +38,7 @@
     },
     "max_records": 100000,
     "max_records_tolerance_ratio": 0.98,
+    "max_report_age_days": 0,
     "capture_tables": true,
     "export_button_keywords": ["تصدير", "Excel", "تحميل"],
     "download_dir": "output",
@@ -93,6 +94,7 @@
     "smtp_server": "mail.alriyadh.gov.sa",
     "smtp_port": 25,
     "use_tls": false,
+    "timeout_sec": 60,
     "send_via": "smtp",
     "summary_only": false,
     "global_cc": "anaf@alriyadh.gov.sa;MAlFahd@alriyadh.gov.sa",
@@ -114,7 +116,9 @@
   "scheduler": {
     "enabled": true,
     "time": "08:30",
-    "task_name": "AutomationDailyReport"
+    "task_name": "AutomationDailyReport",
+    "days": "SUN,MON,TUE,WED,THU",
+    "run_as_user": ""
   },
   "whatsapp": {
     "enabled": false,

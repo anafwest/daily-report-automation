@@ -1,3 +1,4 @@
+import re
 import smtplib
 from datetime import datetime
 from email.mime.application import MIMEApplication
@@ -8,6 +9,22 @@ from pathlib import Path
 import pandas as pd
 
 from .config_loader import BASE_DIR, env, load_config
+
+
+def _split_addresses(value) -> list:
+    """يفصل قائمة عناوين مفصولة بـ ';' أو ',' أو '،' ويعيد عناوين نظيفة بدون تكرار.
+
+    الإصلاح: كان الدمج يتم بـ ',' بينما التقسيم يتم على ';' فقط، فينتج عنوان
+    واحد تالف مثل "a@x.sa,b@x.sa" يُمرَّر كـ RCPT TO واحد فيفشل الإرسال.
+    """
+    if not value:
+        return []
+    out = []
+    for part in re.sub(r"[;،]", ",", str(value)).split(","):
+        part = part.strip()
+        if part and part not in out:
+            out.append(part)
+    return out
 
 
 def _build_message(sender: str, to: str, cc: str, subject: str, body: str, attachment: str):
@@ -28,7 +45,10 @@ def _build_message(sender: str, to: str, cc: str, subject: str, body: str, attac
 
 def _connect(sender: str, password: str):
     email_cfg = load_config()["email"]
-    server = smtplib.SMTP(email_cfg["smtp_server"], email_cfg["smtp_port"])
+    # مهلة إلزامية: بدونها أي تعطّل في خادم البريد يعلّق المهمة المجدولة إلى الأبد
+    # (الخادم قد يقبل اتصال TCP ثم لا يرسل الـ banner، فيبقى smtplib منتظراً بلا نهاية).
+    timeout = float(email_cfg.get("timeout_sec", 60))
+    server = smtplib.SMTP(email_cfg["smtp_server"], email_cfg["smtp_port"], timeout=timeout)
     server.ehlo()
     if email_cfg.get("use_tls", True):
         server.starttls()
@@ -129,13 +149,30 @@ def send_emails(split_result: dict, dry_run: bool = False, test_to: str = "") ->
 
     for e in ready:
         msg = _build_message(sender, e["to"], e.get("cc", ""), e["subject"], e["body"], e.get("attachment", ""))
-        try:
-            server.sendmail(sender, [x for x in [e["to"]] + (e.get("cc", "").split(";") if e.get("cc") else []) if x], msg.as_string())
-            print(f"  [أُرسل] {e['dept']} -> {e['to']}")
-            sent.append((e["dept"], e["to"], e.get("cc", ""), e.get("attachment", "")))
-        except Exception as ex:
-            print(f"  [فشل] {e['dept']} -> {e['to']}: {ex}")
-            failed.append((e["dept"], str(ex)))
+        recipients = _split_addresses(e["to"]) + _split_addresses(e.get("cc", ""))
+        for attempt in (1, 2):
+            try:
+                server.sendmail(sender, recipients, msg.as_string())
+                print(f"  [أُرسل] {e['dept']} -> {e['to']}")
+                sent.append((e["dept"], e["to"], e.get("cc", ""), e.get("attachment", "")))
+                break
+            except Exception as ex:
+                if attempt == 1:
+                    # انقطاع الاتصال يُلغي الجلسة — نعيد الاتصال مرة واحدة قبل اعتبار الرسالة فاشلة
+                    print(f"  [إعادة اتصال] {e['dept']}: {ex}")
+                    try:
+                        server.quit()
+                    except Exception:
+                        pass
+                    try:
+                        server = _connect(sender, password)
+                    except Exception as ex2:
+                        print(f"  [فشل] {e['dept']}: تعذر إعادة الاتصال بالخادم: {ex2}")
+                        failed.append((e["dept"], f"تعذر إعادة الاتصال: {ex2}"))
+                        break
+                else:
+                    print(f"  [فشل] {e['dept']} -> {e['to']}: {ex}")
+                    failed.append((e["dept"], str(ex)))
 
     if server:
         try:
@@ -296,7 +333,7 @@ def send_summary_email(summary: dict, dry_run: bool = False, test_to: str = "", 
 
     try:
         server = _connect(sender, password)
-        recipients = [r.strip() for r in to.replace(";", ",").split(",") if r.strip()]
+        recipients = _split_addresses(to)
         msg = _build_message(sender, recipients[0], "", subject, body, "")
         if len(recipients) > 1:
             msg["To"] = ", ".join(recipients)

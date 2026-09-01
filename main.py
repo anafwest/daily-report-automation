@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -18,19 +19,63 @@ if hasattr(sys.stderr, "reconfigure"):
 
 _EXCLUDE_PREFIXES = ("ملخص", "سجل", "إدارات", "إدارات", "Unassigned", "crm_", "login_")
 
-def _find_latest_report() -> Path:
+# أسماء ملفات العينة التي يولّدها أمر test-send — يجب ألا تُعتمد كتقرير يومي
+_TEST_MARKERS = ("تجريبي", "تجربة", "عينة", "test", "sample")
+
+
+def _report_date_from_name(path: Path):
+    """يستخرج تاريخ التقرير (YYYY-MM-DD) من اسم الملف، وإلا None."""
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", path.name)
+    if not m:
+        return None
+    try:
+        return datetime.strptime(m.group(0), "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _find_latest_report(max_age_days: int = 0):
+    """أحدث تقرير مقبول للإرسال.
+
+    max_age_days = 0 يعني: تقرير اليوم فقط. أي ملف أقدم أو ملف عينة تجريبي
+    يُستبعد ولا يُرسل — لأن إرسال بيان قديم للإدارات أسوأ من عدم الإرسال.
+    """
     cfg = load_config()
     out_dir = BASE_DIR / cfg["report"]["download_dir"]
+    if not out_dir.exists():
+        print(f"مجلد الإخراج غير موجود: {out_dir}")
+        return None
+
+    today = datetime.now().date()
     candidates = []
+    skipped = []
+
     for p in out_dir.glob("*.xlsx"):
+        if not (p.name.startswith("تقرير_") and any(c.isdigit() for c in p.stem)):
+            continue
         if any(p.name.startswith(prefix) for prefix in _EXCLUDE_PREFIXES):
             continue
         if "تقرير_التشغيل" in p.name:
             continue
-        if p.name.startswith("تقرير_") and any(c.isdigit() for c in p.stem):
-            candidates.append(p)
+        if any(marker in p.name for marker in _TEST_MARKERS):
+            skipped.append((p.name, "ملف عينة تجريبي (test-send) — لا يُعتمد"))
+            continue
+        report_date = _report_date_from_name(p)
+        if report_date is None:
+            skipped.append((p.name, "لا يوجد تاريخ في اسم الملف"))
+            continue
+        age = (today - report_date).days
+        if age < 0 or age > max_age_days:
+            skipped.append((p.name, f"تاريخه قبل {age} يوم (الحد المسموح: {max_age_days})"))
+            continue
+        candidates.append(p)
+
+    for name, why in skipped:
+        print(f"  ⏭️ تخطّي «{name}» — {why}")
+
     candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return candidates[0] if candidates else None
+
 
 
 def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") -> int:
@@ -61,41 +106,44 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
         run_log.append_run(summary)
         print(f"\n🔴 فشل التقرير اليومي — المرحلة: {stage} — السبب: {reason}")
         print("لم يتم إرسال أي بريد.")
+        # إشعار المسؤول بالفشل — بدونه يبقى العطل صامتاً ولا يعلم به أحد
+        try:
+            send_email.send_summary_email(summary, dry_run=dry_run, test_to=test_to, result=result)
+        except Exception as e:
+            print(f"تنبيه: تعذر إرسال إشعار الفشل إلى المسؤول: {e}")
         return 1
 
-    # المرحلة 1: التقرير (التقاط من ع relationships العملاء أو ملف جاهز)
+    # المرحلة 1: التقرير (التقاط من علاقات العملاء أو ملف جاهز)
     crm_cfg = load_config()["report"].get("crm", {})
     report_path = Path(source) if source else None
+    capture_error = ""
 
     if not source and crm_cfg.get("enabled", True):
         print("بدء الالتقاط من علاقات العملاء...")
+        capture_error = ""
         try:
             captured = crm_capture.capture_report(headless=headless)
         except Exception as e:
             captured = ""
+            capture_error = str(e)
             print(f"تنبيه: فشل الالتقاط من علاقات العملاء: {e}")
         if captured and Path(captured).exists():
             report_path = Path(captured)
         else:
-            print("تعذر الالتقاط من علاقات العملاء — البحث عن ملف جاهز...")
-            report_path = _find_latest_report()
+            capture_error = capture_error or getattr(crm_capture, "LAST_ERROR", "") or "لم يُرجع الالتقاط ملفاً."
+            max_age = int(load_config()["report"].get("max_report_age_days", 0))
+            print(f"تعذر الالتقاط من علاقات العملاء ({capture_error}) — البحث عن ملف جاهز (حد العمر: {max_age} يوم)...")
+            report_path = _find_latest_report(max_age_days=max_age)
 
     if report_path is None or not report_path.exists():
-        if report_path is None or not report_path.exists():
-            if not source:
-                print("لا يوجد ملف تقرير جاهز. حدد المسار بـ --source أو فعّل الالتقاط من علاقات العملاء.")
-                summary["failure_stage"] = "تحميل التقرير من علاقات العملاء"
-                summary["failure_reason"] = "لم يتم العثور على ملف التقرير أو فشل الالتقاط."
-                summary["end_time"] = datetime.now().strftime("%H:%M:%S")
-                admin_report.build_admin_report(run_id, summary, result, failures, validation)
-                run_log.append_run(summary)
-                print("🔴 فشل: لم يتم العثور على ملف التقرير. لم يُرسل أي بريد.")
-                return 1
-            summary["failure_stage"] = "تحميل التقرير"
-            summary["failure_reason"] = f"الملف غير موجود: {report_path}"
-            run_log.append_run(summary)
-            print(f"🔴 فشل: الملف غير موجود — {report_path}. لم يُرسل أي بريد.")
-            return 1
+        if not source:
+            return _fail(
+                "تحميل التقرير من علاقات العملاء",
+                "لم يتم العثور على تقرير مقبول للإرسال (فشل الالتقاط من علاقات العملاء، "
+                f"ولا يوجد ملف حديث مطابق). سبب الالتقاط: {capture_error or 'غير محدد'}",
+            )
+        return _fail("تحميل التقرير", f"الملف غير موجود: {report_path}")
+
 
     # المرحلة 2: فحص التقرير
     print("=" * 60)
@@ -154,10 +202,9 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
     summary["emails_failed"] = len(failed)
     failures = [(d, r) for d, r in failed]
 
-    # المرحلة 5.5: إرسال الملخص الشخصي
-    send_email.send_summary_email(summary, dry_run=dry_run, test_to=test_to, result=result)
-
     # المرحلة 6: الحالة والتقرير والسجل
+    # ملاحظة: يجب احتساب الحالة قبل إرسال الملخص — إرساله قبل ذلك كان يجعل
+    # نص الملخص يقول "الحالة: فشل" دائماً لأن القيمة الابتدائية لـ status هي "fail".
     if summary["emails_failed"] == 0:
         summary["status"] = "success"
     else:
@@ -165,6 +212,12 @@ def _run_daily(source: str, dry_run: bool, headless: bool, test_to: str = "") ->
     summary["end_time"] = datetime.now().strftime("%H:%M:%S")
     admin_report.build_admin_report(run_id, summary, result, failures, validation)
     run_log.append_run(summary)
+
+    # المرحلة 6.5: إشعار المسؤول (بعد اكتمال الحالة والمؤشرات)
+    try:
+        send_email.send_summary_email(summary, dry_run=dry_run, test_to=test_to, result=result)
+    except Exception as e:
+        print(f"تنبيه: تعذر إرسال ملخص المسؤول: {e}")
 
     if summary["status"] == "success":
         print(f"\n🟢 اكتملت العملية اليومية بنجاح ({run_id})")
